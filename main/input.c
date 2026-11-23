@@ -859,7 +859,9 @@ bool input_get(input_event_t *ev)
 
 static volatile int s_wheel_presses;
 static volatile bool s_wheel_down;
+#if BOARD_WHEEL
 static int s_wheel_last;
+#endif
 
 bool input_has_wheel(void)
 {

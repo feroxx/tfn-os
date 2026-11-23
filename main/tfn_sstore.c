@@ -9,6 +9,7 @@
 #include "tfn_app_priv.h"
 #include "esp_http_client.h"
 #include "esp_crt_bundle.h"  // (after esp_http_client.h: it needs the mbedTLS types)
+#include "power.h"
 #include "tfn_sstore.h"
 #include "wifi.h"
 
@@ -148,7 +149,9 @@ static bool ss_verify(const uint8_t pk[TFN_PUB_PK], const uint8_t *msg, size_t n
     if (psa_import_key(&at, pk, TFN_PUB_PK, &k) != PSA_SUCCESS) {
         return false;
     }
+    power_idle1_hold(true);
     psa_status_t st = psa_verify_message(k, PSA_ALG_ECDSA(PSA_ALG_SHA_256), msg, n, sig, 64);
+    power_idle1_hold(false);
     psa_destroy_key(k);
     return st == PSA_SUCCESS;
 }
@@ -247,6 +250,7 @@ static void ss_task(void *arg)
             continue;
         }
         if (i != first) {
+            vTaskDelay(1);
             esp_http_client_set_url(h, g->url);
             esp_http_client_set_user_data(h, g);
         }
@@ -264,8 +268,10 @@ static void ss_task(void *arg)
 static void ss_run(ss_get_t *g, int n, size_t total, void (*progress)(int))
 {
     ss_job_t job = {.g = g, .n = n};
+    power_idle1_hold(true);
     if (xTaskCreatePinnedToCoreWithCaps(ss_task, "sstore", SS_STACK, &job, 2, NULL, 1,
                                         MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT) != pdPASS) {
+        power_idle1_hold(false);
         for (int i = 0; i < n; i++) {
             g[i].err = ESP_ERR_NO_MEM;
         }
@@ -281,6 +287,7 @@ static void ss_run(ss_get_t *g, int n, size_t total, void (*progress)(int))
             progress((int)((uint64_t)got * SS_DL_PCT / total));
         }
     }
+    power_idle1_hold(false);
 }
 
 // the fault of one GET into msg; true = good (a GET with no URL is good)

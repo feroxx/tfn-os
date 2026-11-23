@@ -254,6 +254,7 @@ static void worker(void *arg)
                 s_cat[i].icon_len = len;
                 s_cat[i].icon = b;
                 any = true;
+                vTaskDelay(1);
                 break;
             }
             if (!any) {
